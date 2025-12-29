@@ -6,7 +6,7 @@ import { Injectable } from '@angular/core';
 })
 export class ChatService {
 
-  private apiUrl = 'https://ai-chatbot-backend-s8qj.vercel.app/chat';
+  private apiUrl = 'https://ai-chatbot-backend-s8qj.vercel.app/api/chat';
 
   constructor(private http: HttpClient) {}
 
