@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { MarkdownModule } from 'ngx-markdown';
 import { ChatService } from '../../services/chat.service';
 
 interface Message {
@@ -12,11 +13,11 @@ interface Message {
   selector: 'app-chat',
   standalone: true,
   imports: [
-    CommonModule,   // for *ngFor, *ngIf
-    FormsModule     // ✅ REQUIRED for ngModel
+    CommonModule,
+    FormsModule,
+    MarkdownModule   
   ],
-  templateUrl: './chat.component.html',
-  styleUrls: ['./chat.component.css']
+  templateUrl: './chat.component.html'
 })
 export class ChatComponent {
 

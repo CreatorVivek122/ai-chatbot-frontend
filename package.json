@@ -19,6 +19,8 @@
     "@angular/router": "^19.2.0",
     "@mlc-ai/web-llm": "^0.2.80",
     "@tailwindcss/postcss": "^4.1.18",
+    "marked": "^15.0.12",
+    "ngx-markdown": "^19.1.1",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.15.0"
