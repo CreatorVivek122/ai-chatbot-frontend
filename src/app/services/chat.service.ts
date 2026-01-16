@@ -1,19 +1,31 @@
-import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable } from 'rxjs';
 
 @Injectable({
   providedIn: 'root'
 })
 export class ChatService {
 
-  private apiUrl = 'https://ai-chatbot-backend-s8qj.vercel.app/api/chat';
+  private readonly API_URL =
+    'https://ai-chatbot-backend-s8qj.vercel.app/api/chat';
 
   constructor(private http: HttpClient) {}
 
-  sendMessage(message: string) {
-    return this.http.post<{ reply: string }>(
-      this.apiUrl,
-      { message }
+  /**
+   * Send message to backend with selected model
+   */
+  sendMessage(
+    message: string,
+    model: 'FAST' | 'SMART' | 'LONG' | 'LIGHT'
+  ): Observable<{ reply: string; modelUsed?: string }> {
+
+    return this.http.post<{ reply: string; modelUsed?: string }>(
+      this.API_URL,
+      {
+        message,
+        model
+      }
     );
   }
 }
