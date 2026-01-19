@@ -4,13 +4,26 @@ import { FormsModule } from '@angular/forms';
 import { MarkdownModule } from 'ngx-markdown';
 import { ChatService } from '../../services/chat.service';
 
+/* =========================
+   TYPES
+========================= */
+type ModelType = 'FAST' | 'SMART' | 'LONG' | 'LIGHT';
+
 interface Message {
   text: string;
   sender: 'user' | 'bot';
 }
 
-type ModelType = 'FAST' | 'SMART' | 'LONG' | 'LIGHT';
+interface ChatSession {
+  id: number;
+  title: string;
+  model: ModelType;
+  messages: Message[];
+}
 
+/* =========================
+   COMPONENT
+========================= */
 @Component({
   selector: 'app-chat',
   standalone: true,
@@ -19,92 +32,118 @@ type ModelType = 'FAST' | 'SMART' | 'LONG' | 'LIGHT';
 })
 export class ChatComponent {
 
-  messages: Message[] = [
-    { text: 'Hello 👋 How can I help you?', sender: 'bot' }
-  ];
+  chats: ChatSession[] = [];
+  activeChatId!: number;
 
   userInput = '';
   isLoading = false;
 
-  // 🔽 Dropdown state
+  selectedModel: ModelType = 'FAST';
   isModelMenuOpen = false;
 
-  selectedModel: ModelType = 'FAST';
-
-  models: {
+  models: ReadonlyArray<{
     value: ModelType;
-    title: string;
-    description: string;
-  }[] = [
-    {
-      value: 'SMART',
-      title: '🧠 Smart',
-      description: 'Best for complex reasoning'
-    },
-    {
-      value: 'FAST',
-      title: '⚡ Fast',
-      description: 'Best for everyday tasks'
-    },
-    {
-      value: 'LIGHT',
-      title: '🎯 Light',
-      description: 'Fastest for quick answers'
-    },
-    {
-      value: 'LONG',
-      title: '📜 Long',
-      description: 'Best for long context'
-    }
+    label: string;
+  }> = [
+    { value: 'FAST', label: '⚡ Fast' },
+    { value: 'SMART', label: '🧠 Smart' },
+    { value: 'LONG', label: '📜 Long' },
+    { value: 'LIGHT', label: '🎯 Light' }
   ];
 
-  constructor(private chatService: ChatService) {}
+  constructor(private chatService: ChatService) {
+    this.createNewChat();
+  }
 
+  /* =========================
+     CHAT MANAGEMENT
+  ========================= */
+  createNewChat() {
+    const chat: ChatSession = {
+      id: Date.now(),
+      title: 'New Chat',
+      model: this.selectedModel,
+      messages: [
+        { text: 'Hello 👋 How can I help you?', sender: 'bot' }
+      ]
+    };
+
+    this.chats.unshift(chat);
+    this.activeChatId = chat.id;
+  }
+
+  switchChat(id: number) {
+    this.activeChatId = id;
+
+    // ✅ Sync dropdown with this chat's model
+    const chat = this.chats.find(c => c.id === id);
+    if (chat) {
+      this.selectedModel = chat.model;
+    }
+  }
+
+  get activeChat(): ChatSession {
+    return this.chats.find(c => c.id === this.activeChatId)!;
+  }
+
+  /* =========================
+     MODEL PICKER
+  ========================= */
   toggleModelMenu() {
     this.isModelMenuOpen = !this.isModelMenuOpen;
   }
 
   selectModel(model: ModelType) {
     this.selectedModel = model;
+    this.activeChat.model = model;
     this.isModelMenuOpen = false;
   }
 
-  get selectedModelLabel() {
-    return this.models.find(m => m.value === this.selectedModel)?.title;
+  get selectedModelLabel(): string {
+    return this.models.find(m => m.value === this.selectedModel)?.label ?? '';
   }
 
-  // 🔒 Close dropdown on outside click
   @HostListener('document:click', ['$event'])
   closeOnOutsideClick(event: MouseEvent) {
-    const target = event.target as HTMLElement;
-    if (!target.closest('.model-picker')) {
+    if (!(event.target as HTMLElement).closest('.model-picker')) {
       this.isModelMenuOpen = false;
     }
   }
 
+  /* =========================
+     SEND MESSAGE
+  ========================= */
   sendMessage() {
     if (!this.userInput.trim() || this.isLoading) return;
 
-    const userMessage = this.userInput;
+    const chat = this.activeChat;
+    const message = this.userInput;
     this.userInput = '';
 
-    this.messages.push({ text: userMessage, sender: 'user' });
+    chat.messages.push({ text: message, sender: 'user' });
+
+    // ✅ SET TITLE ONLY ON FIRST USER MESSAGE
+    if (chat.title === 'New Chat') {
+      chat.title = message.slice(0, 30);
+    }
+
     this.isLoading = true;
 
-    this.chatService
-      .sendMessage(userMessage, this.selectedModel)
-      .subscribe({
-        next: (res) => {
-          this.messages.push({ text: res.reply, sender: 'bot' });
-          this.isLoading = false;
-        },
-        error: () => {
-          this.messages.push({
-            text: '⚠️ Something went wrong. Try again.',
-            sender: 'bot'
-          });
-          this.isLoading = false;
-        }
-      });
+    this.chatService.sendMessage(message, chat.model).subscribe({
+      next: (res) => {
+        chat.messages.push({
+          text: res.reply,
+          sender: 'bot'
+        });
+        this.isLoading = false;
+      },
+      error: () => {
+        chat.messages.push({
+          text: '⚠️ Something went wrong.',
+          sender: 'bot'
+        });
+        this.isLoading = false;
+      }
+    });
   }
 }
