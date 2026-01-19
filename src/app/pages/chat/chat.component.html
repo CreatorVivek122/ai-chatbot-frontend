@@ -18,17 +18,21 @@
           : 'hover:bg-gray-100'">
 
         <div class="flex items-center gap-2 truncate">
-          <span>{{ chat.title }}</span>
-                
-          <!-- 🔄 Typing animation -->
-          <span
-            *ngIf="chat.isGeneratingTitle"
-            class="flex gap-1">
+
+          <!-- 🧠 Show title ONLY when not generating -->
+          <span *ngIf="!chat.isGeneratingTitle">
+            {{ chat.title }}
+          </span>
+        
+          <!-- 🔄 Show animation ONLY while generating -->
+          <span *ngIf="chat.isGeneratingTitle" class="flex gap-1">
             <span class="w-1 h-1 bg-gray-500 rounded-full animate-bounce"></span>
             <span class="w-1 h-1 bg-gray-500 rounded-full animate-bounce delay-150"></span>
             <span class="w-1 h-1 bg-gray-500 rounded-full animate-bounce delay-300"></span>
           </span>
+        
         </div>
+
 
         <div class="text-xs text-gray-500 ">
           {{ chat.model }}
