@@ -28,4 +28,13 @@ export class ChatService {
       }
     );
   }
+
+
+  generateTitle(message: string) {
+    return this.http.post<{ title: string }>(
+      'https://ai-chatbot-backend-s8qj.vercel.app/api/title',
+      { message }
+    );
+  }
+
 }

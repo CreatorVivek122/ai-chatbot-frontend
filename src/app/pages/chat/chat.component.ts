@@ -114,36 +114,46 @@ export class ChatComponent {
      SEND MESSAGE
   ========================= */
   sendMessage() {
-    if (!this.userInput.trim() || this.isLoading) return;
+  if (!this.userInput.trim() || this.isLoading) return;
 
-    const chat = this.activeChat;
-    const message = this.userInput;
-    this.userInput = '';
+  const chat = this.activeChat;
+  const message = this.userInput;
+  this.userInput = '';
 
-    chat.messages.push({ text: message, sender: 'user' });
+  chat.messages.push({ text: message, sender: 'user' });
 
-    // ✅ SET TITLE ONLY ON FIRST USER MESSAGE
-    if (chat.title === 'New Chat') {
-      chat.title = message.slice(0, 30);
-    }
+  // 🔹 Temporary title
+  if (chat.title === 'New Chat') {
+    chat.title = 'Generating title...';
 
-    this.isLoading = true;
-
-    this.chatService.sendMessage(message, chat.model).subscribe({
+    this.chatService.generateTitle(message).subscribe({
       next: (res) => {
-        chat.messages.push({
-          text: res.reply,
-          sender: 'bot'
-        });
-        this.isLoading = false;
+        chat.title = res.title || 'New Chat';
       },
       error: () => {
-        chat.messages.push({
-          text: '⚠️ Something went wrong.',
-          sender: 'bot'
-        });
-        this.isLoading = false;
+        chat.title = message.slice(0, 30);
       }
     });
   }
+
+  this.isLoading = true;
+
+  this.chatService.sendMessage(message, chat.model).subscribe({
+    next: (res) => {
+      chat.messages.push({
+        text: res.reply,
+        sender: 'bot'
+      });
+      this.isLoading = false;
+    },
+    error: () => {
+      chat.messages.push({
+        text: '⚠️ Something went wrong.',
+        sender: 'bot'
+      });
+      this.isLoading = false;
+    }
+  });
+}
+
 }
