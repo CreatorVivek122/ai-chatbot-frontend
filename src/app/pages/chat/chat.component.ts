@@ -4,9 +4,6 @@ import { FormsModule } from '@angular/forms';
 import { MarkdownModule } from 'ngx-markdown';
 import { ChatService } from '../../services/chat.service';
 
-/* =========================
-   TYPES
-========================= */
 type ModelType = 'FAST' | 'SMART' | 'LONG' | 'LIGHT';
 
 interface Message {
@@ -19,12 +16,10 @@ interface ChatSession {
   title: string;
   model: ModelType;
   messages: Message[];
+  isStarred: boolean;
   isGeneratingTitle?: boolean;
 }
 
-/* =========================
-   COMPONENT
-========================= */
 @Component({
   selector: 'app-chat',
   standalone: true,
@@ -38,14 +33,18 @@ export class ChatComponent {
 
   userInput = '';
   isLoading = false;
+  isFirstInteraction = true;
 
+  // Navbar / menus
+  isChatMenuOpen = false;
+  renamingChat = false;
+  renameInput = '';
+
+  // Model picker
   selectedModel: ModelType = 'FAST';
   isModelMenuOpen = false;
 
-  models: ReadonlyArray<{
-    value: ModelType;
-    label: string;
-  }> = [
+  models: ReadonlyArray<{ value: ModelType; label: string }> = [
     { value: 'FAST', label: '⚡ Fast' },
     { value: 'SMART', label: '🧠 Smart' },
     { value: 'LONG', label: '📜 Long' },
@@ -56,40 +55,115 @@ export class ChatComponent {
     this.createNewChat();
   }
 
-  /* =========================
-     CHAT MANAGEMENT
-  ========================= */
-  createNewChat() {
-    const chat: ChatSession = {
-      id: Date.now(),
-      title: 'New Chat',
-      model: this.selectedModel,
-      messages: [
-        { text: 'Hello 👋 How can I help you?', sender: 'bot' }
-      ]
-    };
-
-    this.chats.unshift(chat);
-    this.activeChatId = chat.id;
-  }
-
-  switchChat(id: number) {
-    this.activeChatId = id;
-
-    // ✅ Sync dropdown with this chat's model
-    const chat = this.chats.find(c => c.id === id);
-    if (chat) {
-      this.selectedModel = chat.model;
-    }
-  }
+  /* ================= CHAT GETTERS ================= */
 
   get activeChat(): ChatSession {
     return this.chats.find(c => c.id === this.activeChatId)!;
   }
 
-  /* =========================
-     MODEL PICKER
-  ========================= */
+  get starredChats() {
+    return this.chats.filter(c => c.isStarred);
+  }
+
+  get recentChats() {
+    return this.chats.filter(c => !c.isStarred);
+  }
+
+  /* ================= CHAT ACTIONS ================= */
+
+  createNewChat() {
+    const chat: ChatSession = {
+      id: Date.now(),
+      title: 'New Chat',
+      model: this.selectedModel,
+      isStarred: false,
+      messages: [{ text: 'Hello 👋 How can I help you?', sender: 'bot' }]
+    };
+
+    this.chats.unshift(chat);
+    this.activeChatId = chat.id;
+    this.selectedModel = chat.model;
+    this.isFirstInteraction = true;
+  }
+
+  switchChat(id: number) {
+    this.activeChatId = id;
+    this.selectedModel = this.activeChat.model;
+    this.isFirstInteraction = false;
+    this.isChatMenuOpen = false;
+  }
+
+  toggleStar(chat: ChatSession) {
+    chat.isStarred = !chat.isStarred;
+  }
+
+  deleteChat(chat: ChatSession) {
+    this.chats = this.chats.filter(c => c.id !== chat.id);
+    if (this.activeChatId === chat.id && this.chats.length) {
+      this.switchChat(this.chats[0].id);
+    }
+  }
+
+  /* ================= RENAME ================= */
+
+  startRename() {
+    this.renameInput = this.activeChat.title;
+    this.renamingChat = true;
+    this.isChatMenuOpen = false;
+  }
+
+  confirmRename() {
+    if (this.renameInput.trim()) {
+      this.activeChat.title = this.renameInput.trim();
+    }
+    this.renamingChat = false;
+  }
+
+  /* ================= MESSAGE ================= */
+
+  sendMessage() {
+    if (!this.userInput.trim() || this.isLoading) return;
+
+    if (this.isFirstInteraction) this.isFirstInteraction = false;
+
+    const chat = this.activeChat;
+    const message = this.userInput;
+    this.userInput = '';
+
+    chat.messages.push({ text: message, sender: 'user' });
+
+    // AI title generation (only once)
+    if (chat.title === 'New Chat') {
+      chat.isGeneratingTitle = true;
+
+      this.chatService.generateTitle(message).subscribe({
+        next: r => {
+          chat.title = r.title || 'New Chat';
+          chat.isGeneratingTitle = false;
+        },
+        error: () => {
+          chat.title = message.slice(0, 30);
+          chat.isGeneratingTitle = false;
+        }
+      });
+    }
+
+    this.isLoading = true;
+
+    this.chatService.sendMessage(message, chat.model).subscribe({
+      next: r => {
+        chat.messages.push({ text: r.reply, sender: 'bot' });
+        this.isLoading = false;
+      },
+      error: () => {
+        chat.messages.push({ text: '⚠️ Something went wrong.', sender: 'bot' });
+        this.isLoading = false;
+      }
+    });
+  }
+
+  /* ================= MODEL ================= */
+
   toggleModelMenu() {
     this.isModelMenuOpen = !this.isModelMenuOpen;
   }
@@ -100,64 +174,16 @@ export class ChatComponent {
     this.isModelMenuOpen = false;
   }
 
-  get selectedModelLabel(): string {
-    return this.models.find(m => m.value === this.selectedModel)?.label ?? '';
+  /* ================= UI HELPERS ================= */
+
+  toggleChatMenu() {
+    this.isChatMenuOpen = !this.isChatMenuOpen;
   }
 
   @HostListener('document:click', ['$event'])
-  closeOnOutsideClick(event: MouseEvent) {
-    if (!(event.target as HTMLElement).closest('.model-picker')) {
-      this.isModelMenuOpen = false;
-    }
+  closeMenus(e: MouseEvent) {
+    const t = e.target as HTMLElement;
+    if (!t.closest('.chat-menu')) this.isChatMenuOpen = false;
+    if (!t.closest('.model-picker')) this.isModelMenuOpen = false;
   }
-
-  /* =========================
-     SEND MESSAGE
-  ========================= */
-  sendMessage() {
-  if (!this.userInput.trim() || this.isLoading) return;
-
-  const chat = this.activeChat;
-  const message = this.userInput;
-  this.userInput = '';
-
-  chat.messages.push({ text: message, sender: 'user' });
-
-  // 🔹 Temporary title
-  if (chat.title === 'New Chat') {
-    chat.isGeneratingTitle = true;
-
-    this.chatService.generateTitle(message).subscribe({
-      next: (res) => {
-        chat.title = res.title || 'New Chat';
-        chat.isGeneratingTitle = false;
-      },
-      error: () => {
-        chat.title = message.slice(0, 30);
-        chat.isGeneratingTitle = false;
-      }
-    });
-  }
-
-
-  this.isLoading = true;
-
-  this.chatService.sendMessage(message, chat.model).subscribe({
-    next: (res) => {
-      chat.messages.push({
-        text: res.reply,
-        sender: 'bot'
-      });
-      this.isLoading = false;
-    },
-    error: () => {
-      chat.messages.push({
-        text: '⚠️ Something went wrong.',
-        sender: 'bot'
-      });
-      this.isLoading = false;
-    }
-  });
-}
-
 }
