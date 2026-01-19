@@ -19,6 +19,7 @@ interface ChatSession {
   title: string;
   model: ModelType;
   messages: Message[];
+  isGeneratingTitle?: boolean;
 }
 
 /* =========================
@@ -124,17 +125,20 @@ export class ChatComponent {
 
   // 🔹 Temporary title
   if (chat.title === 'New Chat') {
-    chat.title = 'Generating title...';
+    chat.isGeneratingTitle = true;
 
     this.chatService.generateTitle(message).subscribe({
       next: (res) => {
         chat.title = res.title || 'New Chat';
+        chat.isGeneratingTitle = false;
       },
       error: () => {
         chat.title = message.slice(0, 30);
+        chat.isGeneratingTitle = false;
       }
     });
   }
+
 
   this.isLoading = true;
 
