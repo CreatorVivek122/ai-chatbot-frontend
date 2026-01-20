@@ -3,9 +3,7 @@
   <!-- ================= SIDEBAR ================= -->
   <aside class="w-64 border-r bg-white flex flex-col h-full overflow-hidden">
 
-    <button
-      (click)="createNewChat()"
-      class="m-3 px-3 py-2 bg-black text-white rounded-lg">
+    <button (click)="createNewChat()" class="m-3 px-3 py-2 bg-black text-white rounded-lg">
       + New Chat
     </button>
 
@@ -16,20 +14,42 @@
         STARRED
       </div>
 
-      <div
-        *ngFor="let chat of starredChats"
-        (click)="switchChat(chat.id)"
-        class="group px-4 py-2 cursor-pointer hover:bg-gray-100 flex justify-between relative">
+      <div *ngFor="let chat of starredChats" (click)="switchChat(chat.id)"
+        class="group relative px-4 py-2 cursor-pointer hover:bg-gray-100 flex justify-between">
 
         <span class="truncate">⭐ {{ chat.title }}</span>
+
+        <!-- THREE DOTS -->
+        <span class="opacity-0 group-hover:opacity-100
+           px-2 py-1 rounded hover:bg-gray-200
+           cursor-pointer sidebar-menu" (click)="$event.stopPropagation(); openSidebarMenu(chat.id)">
+          ⋯
+        </span>
+
+        <!-- DROPDOWN -->
+        <div *ngIf="sidebarMenuChatId === chat.id"
+          class="absolute right-4 top-10 w-40 bg-white border rounded-lg shadow z-50 sidebar-menu">
+
+          <div class="px-3 py-2 hover:bg-gray-100 cursor-pointer" (click)="startRename(); closeSidebarMenu()">
+            ✏️ Rename
+          </div>
+
+          <div class="px-3 py-2 hover:bg-gray-100 cursor-pointer" (click)="toggleStar(chat); closeSidebarMenu()">
+            ⭐ Unstar
+          </div>
+
+          <div class="px-3 py-2 hover:bg-red-50 text-red-600 cursor-pointer"
+            (click)="deleteChat(chat); closeSidebarMenu()">
+            🗑 Delete
+          </div>
+        </div>
       </div>
+
 
       <!-- RECENT -->
       <div class="px-3 text-xs text-gray-500 mt-4">YOUR CHATS</div>
 
-      <div
-        *ngFor="let chat of recentChats"
-        (click)="switchChat(chat.id)"
+      <div *ngFor="let chat of recentChats" (click)="switchChat(chat.id)"
         class="group relative px-4 py-2 cursor-pointer hover:bg-gray-100 flex justify-between">
 
         <div class="flex items-center gap-2 truncate">
@@ -42,31 +62,24 @@
         </div>
 
         <!-- THREE DOTS -->
-        <span
-          class="opacity-0 group-hover:opacity-100 px-2 py-1 rounded hover:bg-gray-200 cursor-pointer sidebar-menu"
+        <span class="opacity-0 group-hover:opacity-100 px-2 py-1 rounded hover:bg-gray-200 cursor-pointer sidebar-menu"
           (click)="$event.stopPropagation(); openSidebarMenu(chat.id)">
           ⋯
         </span>
 
         <!-- DROPDOWN -->
-        <div
-          *ngIf="sidebarMenuChatId === chat.id"
+        <div *ngIf="sidebarMenuChatId === chat.id"
           class="absolute right-4 top-10 w-40 bg-white border rounded-lg shadow z-50 sidebar-menu">
 
-          <div
-            class="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-            (click)="startRename(); closeSidebarMenu()">
+          <div class="px-3 py-2 hover:bg-gray-100 cursor-pointer" (click)="startRename(); closeSidebarMenu()">
             ✏️ Rename
           </div>
 
-          <div
-            class="px-3 py-2 hover:bg-gray-100 cursor-pointer"
-            (click)="toggleStar(chat); closeSidebarMenu()">
+          <div class="px-3 py-2 hover:bg-gray-100 cursor-pointer" (click)="toggleStar(chat); closeSidebarMenu()">
             ⭐ {{ chat.isStarred ? 'Unstar' : 'Star' }}
           </div>
 
-          <div
-            class="px-3 py-2 hover:bg-red-50 text-red-600 cursor-pointer"
+          <div class="px-3 py-2 hover:bg-red-50 text-red-600 cursor-pointer"
             (click)="deleteChat(chat); closeSidebarMenu()">
             🗑 Delete
           </div>
@@ -86,14 +99,30 @@
           {{ activeChat.title }}
         </span>
 
-        <input
-          *ngIf="renamingChat"
-          [(ngModel)]="renameInput"
-          (keyup.enter)="confirmRename()"
+        <input *ngIf="renamingChat" [(ngModel)]="renameInput" (keyup.enter)="confirmRename()"
           class="border rounded px-2 py-1 text-sm" />
 
         <button (click)="toggleChatMenu()">▾</button>
+
+        <!-- ✅ NAVBAR DROPDOWN (THIS WAS MISSING) -->
+        <div *ngIf="isChatMenuOpen" class="absolute top-12 left-0 w-40 bg-white border rounded-lg shadow z-50">
+
+          <div class="px-3 py-2 hover:bg-gray-100 cursor-pointer" (click)="startRename(); isChatMenuOpen = false">
+            ✏️ Rename
+          </div>
+
+          <div class="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+            (click)="toggleStar(activeChat); isChatMenuOpen = false">
+            ⭐ {{ activeChat.isStarred ? 'Unstar' : 'Star' }}
+          </div>
+
+          <div class="px-3 py-2 hover:bg-red-50 text-red-600 cursor-pointer"
+            (click)="deleteChat(activeChat); isChatMenuOpen = false">
+            🗑 Delete
+          </div>
+        </div>
       </div>
+
 
       <!-- MODEL PICKER -->
       <div class="relative model-picker">
@@ -101,13 +130,9 @@
           {{ selectedModel }} ▾
         </button>
 
-        <div
-          *ngIf="isModelMenuOpen"
-          class="absolute right-0 mt-2 bg-white border rounded shadow">
+        <div *ngIf="isModelMenuOpen" class="absolute right-0 mt-2 bg-white border rounded shadow">
 
-          <div
-            *ngFor="let m of models"
-            (click)="selectModel(m.value)"
+          <div *ngFor="let m of models" (click)="selectModel(m.value)"
             class="px-4 py-2 hover:bg-gray-100 cursor-pointer">
             {{ m.label }}
           </div>
@@ -116,9 +141,7 @@
     </div>
 
     <!-- FIRST VISIT -->
-    <div
-      *ngIf="isFirstInteraction"
-      class="flex flex-col items-center justify-center flex-1 min-h-0 text-center px-4">
+    <div *ngIf="isFirstInteraction" class="flex flex-col items-center justify-center flex-1 min-h-0 text-center px-4">
 
       <h1 class="text-3xl font-semibold mb-3">Hello 👋 I’m Ang</h1>
       <p class="text-gray-600 mb-6 max-w-md">
@@ -126,15 +149,9 @@
       </p>
 
       <div class="w-full max-w-xl flex gap-2">
-        <input
-          type="text"
-          [(ngModel)]="userInput"
-          (keyup.enter)="sendMessage()"
-          placeholder="Type your message..."
+        <input type="text" [(ngModel)]="userInput" (keyup.enter)="sendMessage()" placeholder="Type your message..."
           class="flex-1 border rounded-lg px-4 py-3 focus:ring-2 focus:ring-black" />
-        <button
-          (click)="sendMessage()"
-          class="bg-black text-white px-5 py-3 rounded-lg">
+        <button (click)="sendMessage()" class="bg-black text-white px-5 py-3 rounded-lg">
           Send
         </button>
       </div>
@@ -144,14 +161,10 @@
     <div *ngIf="!isFirstInteraction" class="flex flex-col flex-1 overflow-hidden min-h-0">
 
       <div class="flex-1 overflow-y-auto min-h-0 p-4 space-y-4">
-        <div
-          *ngFor="let msg of activeChat.messages"
-          class="flex"
+        <div *ngFor="let msg of activeChat.messages" class="flex"
           [ngClass]="msg.sender === 'user' ? 'justify-end' : 'justify-start'">
 
-          <div
-            class="max-w-[75%] rounded-xl px-4 py-3 text-sm whitespace-pre-wrap"
-            [ngClass]="msg.sender === 'user'
+          <div class="max-w-[75%] rounded-xl px-4 py-3 text-sm whitespace-pre-wrap" [ngClass]="msg.sender === 'user'
               ? 'bg-black text-white rounded-br-none'
               : 'bg-gray-200 text-gray-900 rounded-bl-none'">
 
@@ -166,15 +179,9 @@
       </div>
 
       <div class="flex gap-2 p-4 border-t bg-white">
-        <input
-          type="text"
-          [(ngModel)]="userInput"
-          (keyup.enter)="sendMessage()"
-          placeholder="Type your message..."
+        <input type="text" [(ngModel)]="userInput" (keyup.enter)="sendMessage()" placeholder="Type your message..."
           class="flex-1 border rounded-lg px-3 py-2" />
-        <button
-          (click)="sendMessage()"
-          class="bg-black text-white px-5 py-2 rounded-lg">
+        <button (click)="sendMessage()" class="bg-black text-white px-5 py-2 rounded-lg">
           Send
         </button>
       </div>
