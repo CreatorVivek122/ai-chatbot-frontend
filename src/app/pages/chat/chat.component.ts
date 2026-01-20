@@ -28,6 +28,10 @@ interface ChatSession {
 })
 export class ChatComponent {
 
+  /* ================= STORAGE ================= */
+  private readonly STORAGE_KEY = 'ang_chats_v1';
+
+  /* ================= STATE ================= */
   chats: ChatSession[] = [];
   activeChatId!: number;
 
@@ -35,12 +39,12 @@ export class ChatComponent {
   isLoading = false;
   isFirstInteraction = true;
 
-  /* Navbar menu */
+  /* Navbar */
   isChatMenuOpen = false;
   renamingChat = false;
   renameInput = '';
 
-  /* Sidebar three-dot menu */
+  /* Sidebar menu */
   sidebarMenuChatId: number | null = null;
 
   /* Model picker */
@@ -55,7 +59,11 @@ export class ChatComponent {
   ] as const;
 
   constructor(private chatService: ChatService) {
-    this.createNewChat();
+    this.loadChatsFromStorage();
+
+    if (!this.chats.length) {
+      this.createNewChat();
+    }
   }
 
   /* ================= GETTERS ================= */
@@ -70,6 +78,34 @@ export class ChatComponent {
 
   get recentChats() {
     return this.chats.filter(c => !c.isStarred);
+  }
+
+  /* ================= STORAGE ================= */
+
+  private saveChatsToStorage() {
+    try {
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.chats));
+    } catch (err) {
+      console.error('Failed to save chats', err);
+    }
+  }
+
+  private loadChatsFromStorage() {
+    try {
+      const raw = localStorage.getItem(this.STORAGE_KEY);
+      if (!raw) return;
+
+      const parsed = JSON.parse(raw);
+
+      if (Array.isArray(parsed)) {
+        this.chats = parsed;
+        this.activeChatId = this.chats[0]?.id;
+        this.isFirstInteraction = false;
+      }
+    } catch (err) {
+      console.error('Failed to load chats', err);
+      localStorage.removeItem(this.STORAGE_KEY);
+    }
   }
 
   /* ================= CHAT ================= */
@@ -87,6 +123,8 @@ export class ChatComponent {
     this.activeChatId = chat.id;
     this.selectedModel = chat.model;
     this.isFirstInteraction = true;
+
+    this.saveChatsToStorage();
   }
 
   switchChat(id: number) {
@@ -94,23 +132,33 @@ export class ChatComponent {
     this.selectedModel = this.activeChat.model;
     this.isFirstInteraction = false;
     this.closeSidebarMenu();
+
+    this.saveChatsToStorage();
   }
 
   toggleStar(chat: ChatSession) {
     chat.isStarred = !chat.isStarred;
+    this.saveChatsToStorage();
   }
 
   deleteChat(chat: ChatSession) {
     this.chats = this.chats.filter(c => c.id !== chat.id);
+
     if (this.chats.length) {
       this.switchChat(this.chats[0].id);
+    } else {
+      this.createNewChat();
     }
+
+    this.saveChatsToStorage();
   }
 
   /* ================= RENAME ================= */
 
-  startRename() {
-    this.renameInput = this.activeChat.title;
+  startRename(chat?: ChatSession) {
+    const target = chat || this.activeChat;
+    this.activeChatId = target.id;
+    this.renameInput = target.title;
     this.renamingChat = true;
     this.isChatMenuOpen = false;
   }
@@ -118,6 +166,7 @@ export class ChatComponent {
   confirmRename() {
     if (this.renameInput.trim()) {
       this.activeChat.title = this.renameInput.trim();
+      this.saveChatsToStorage();
     }
     this.renamingChat = false;
   }
@@ -134,17 +183,21 @@ export class ChatComponent {
     this.userInput = '';
 
     chat.messages.push({ text: msg, sender: 'user' });
+    this.saveChatsToStorage();
 
     if (chat.title === 'New Chat') {
       chat.isGeneratingTitle = true;
+
       this.chatService.generateTitle(msg).subscribe({
         next: r => {
           chat.title = r.title || 'New Chat';
           chat.isGeneratingTitle = false;
+          this.saveChatsToStorage();
         },
         error: () => {
           chat.title = msg.slice(0, 30);
           chat.isGeneratingTitle = false;
+          this.saveChatsToStorage();
         }
       });
     }
@@ -155,10 +208,15 @@ export class ChatComponent {
       next: r => {
         chat.messages.push({ text: r.reply, sender: 'bot' });
         this.isLoading = false;
+        this.saveChatsToStorage();
       },
       error: () => {
-        chat.messages.push({ text: '⚠️ Something went wrong.', sender: 'bot' });
+        chat.messages.push({
+          text: '⚠️ Something went wrong.',
+          sender: 'bot'
+        });
         this.isLoading = false;
+        this.saveChatsToStorage();
       }
     });
   }
@@ -185,6 +243,7 @@ export class ChatComponent {
     this.selectedModel = m;
     this.activeChat.model = m;
     this.isModelMenuOpen = false;
+    this.saveChatsToStorage();
   }
 
   /* ================= GLOBAL CLOSE ================= */
