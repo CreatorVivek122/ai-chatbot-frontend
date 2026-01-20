@@ -1,6 +1,7 @@
-<div class="flex h-screen bg-gray-50">
+<div class="flex h-screen bg-gray-50 overflow-hidden">
+
   <!-- SIDEBAR -->
-  <aside class="w-64 border-r bg-white flex flex-col">
+  <aside class="w-64 border-r bg-white flex flex-col h-full overflow-hidden">
     <button
       (click)="createNewChat()"
       class="m-3 px-3 py-2 bg-black text-white rounded-lg"
@@ -59,7 +60,7 @@
   </aside>
 
   <!-- MAIN -->
-  <div class="flex flex-col flex-1">
+  <div class="flex flex-col flex-1 h-full overflow-hidden">
     <!-- NAVBAR -->
     <div class="h-14 border-b bg-white flex items-center justify-between px-4">
       <div class="relative chat-menu flex items-center gap-2">
