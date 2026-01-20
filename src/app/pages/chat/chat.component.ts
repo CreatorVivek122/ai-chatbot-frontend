@@ -35,27 +35,30 @@ export class ChatComponent {
   isLoading = false;
   isFirstInteraction = true;
 
-  // Navbar / menus
+  /* Navbar menu */
   isChatMenuOpen = false;
   renamingChat = false;
   renameInput = '';
 
-  // Model picker
+  /* Sidebar three-dot menu */
+  sidebarMenuChatId: number | null = null;
+
+  /* Model picker */
   selectedModel: ModelType = 'FAST';
   isModelMenuOpen = false;
 
-  models: ReadonlyArray<{ value: ModelType; label: string }> = [
+  models = [
     { value: 'FAST', label: '⚡ Fast' },
     { value: 'SMART', label: '🧠 Smart' },
     { value: 'LONG', label: '📜 Long' },
     { value: 'LIGHT', label: '🎯 Light' }
-  ];
+  ] as const;
 
   constructor(private chatService: ChatService) {
     this.createNewChat();
   }
 
-  /* ================= CHAT GETTERS ================= */
+  /* ================= GETTERS ================= */
 
   get activeChat(): ChatSession {
     return this.chats.find(c => c.id === this.activeChatId)!;
@@ -69,7 +72,7 @@ export class ChatComponent {
     return this.chats.filter(c => !c.isStarred);
   }
 
-  /* ================= CHAT ACTIONS ================= */
+  /* ================= CHAT ================= */
 
   createNewChat() {
     const chat: ChatSession = {
@@ -90,7 +93,7 @@ export class ChatComponent {
     this.activeChatId = id;
     this.selectedModel = this.activeChat.model;
     this.isFirstInteraction = false;
-    this.isChatMenuOpen = false;
+    this.closeSidebarMenu();
   }
 
   toggleStar(chat: ChatSession) {
@@ -99,7 +102,7 @@ export class ChatComponent {
 
   deleteChat(chat: ChatSession) {
     this.chats = this.chats.filter(c => c.id !== chat.id);
-    if (this.activeChatId === chat.id && this.chats.length) {
+    if (this.chats.length) {
       this.switchChat(this.chats[0].id);
     }
   }
@@ -127,22 +130,20 @@ export class ChatComponent {
     if (this.isFirstInteraction) this.isFirstInteraction = false;
 
     const chat = this.activeChat;
-    const message = this.userInput;
+    const msg = this.userInput;
     this.userInput = '';
 
-    chat.messages.push({ text: message, sender: 'user' });
+    chat.messages.push({ text: msg, sender: 'user' });
 
-    // AI title generation (only once)
     if (chat.title === 'New Chat') {
       chat.isGeneratingTitle = true;
-
-      this.chatService.generateTitle(message).subscribe({
+      this.chatService.generateTitle(msg).subscribe({
         next: r => {
           chat.title = r.title || 'New Chat';
           chat.isGeneratingTitle = false;
         },
         error: () => {
-          chat.title = message.slice(0, 30);
+          chat.title = msg.slice(0, 30);
           chat.isGeneratingTitle = false;
         }
       });
@@ -150,7 +151,7 @@ export class ChatComponent {
 
     this.isLoading = true;
 
-    this.chatService.sendMessage(message, chat.model).subscribe({
+    this.chatService.sendMessage(msg, chat.model).subscribe({
       next: r => {
         chat.messages.push({ text: r.reply, sender: 'bot' });
         this.isLoading = false;
@@ -162,28 +163,38 @@ export class ChatComponent {
     });
   }
 
-  /* ================= MODEL ================= */
-
-  toggleModelMenu() {
-    this.isModelMenuOpen = !this.isModelMenuOpen;
-  }
-
-  selectModel(model: ModelType) {
-    this.selectedModel = model;
-    this.activeChat.model = model;
-    this.isModelMenuOpen = false;
-  }
-
-  /* ================= UI HELPERS ================= */
+  /* ================= MENUS ================= */
 
   toggleChatMenu() {
     this.isChatMenuOpen = !this.isChatMenuOpen;
   }
 
+  openSidebarMenu(chatId: number) {
+    this.sidebarMenuChatId = chatId;
+  }
+
+  closeSidebarMenu() {
+    this.sidebarMenuChatId = null;
+  }
+
+  toggleModelMenu() {
+    this.isModelMenuOpen = !this.isModelMenuOpen;
+  }
+
+  selectModel(m: ModelType) {
+    this.selectedModel = m;
+    this.activeChat.model = m;
+    this.isModelMenuOpen = false;
+  }
+
+  /* ================= GLOBAL CLOSE ================= */
+
   @HostListener('document:click', ['$event'])
   closeMenus(e: MouseEvent) {
     const t = e.target as HTMLElement;
+
     if (!t.closest('.chat-menu')) this.isChatMenuOpen = false;
     if (!t.closest('.model-picker')) this.isModelMenuOpen = false;
+    if (!t.closest('.sidebar-menu')) this.sidebarMenuChatId = null;
   }
 }
