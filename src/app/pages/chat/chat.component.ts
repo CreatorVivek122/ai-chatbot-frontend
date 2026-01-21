@@ -28,10 +28,9 @@ interface ChatSession {
 })
 export class ChatComponent {
 
-  /* ================= STORAGE ================= */
   private readonly STORAGE_KEY = 'ang_chats_v1';
+  private readonly MAX_HISTORY = 10;
 
-  /* ================= STATE ================= */
   chats: ChatSession[] = [];
   activeChatId!: number;
 
@@ -39,17 +38,13 @@ export class ChatComponent {
   isLoading = false;
   isFirstInteraction = true;
 
-  /* Navbar */
   isChatMenuOpen = false;
+  isModelMenuOpen = false;
   renamingChat = false;
   renameInput = '';
-
-  /* Sidebar menu */
   sidebarMenuChatId: number | null = null;
 
-  /* Model picker */
   selectedModel: ModelType = 'FAST';
-  isModelMenuOpen = false;
 
   models = [
     { value: 'FAST', label: '⚡ Fast' },
@@ -60,15 +55,10 @@ export class ChatComponent {
 
   constructor(private chatService: ChatService) {
     this.loadChatsFromStorage();
-
-    if (!this.chats.length) {
-      this.createNewChat();
-    }
+    if (!this.chats.length) this.createNewChat();
   }
 
-  /* ================= GETTERS ================= */
-
-  get activeChat(): ChatSession {
+  get activeChat() {
     return this.chats.find(c => c.id === this.activeChatId)!;
   }
 
@@ -83,29 +73,16 @@ export class ChatComponent {
   /* ================= STORAGE ================= */
 
   private saveChatsToStorage() {
-    try {
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.chats));
-    } catch (err) {
-      console.error('Failed to save chats', err);
-    }
+    localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.chats));
   }
 
   private loadChatsFromStorage() {
-    try {
-      const raw = localStorage.getItem(this.STORAGE_KEY);
-      if (!raw) return;
+    const raw = localStorage.getItem(this.STORAGE_KEY);
+    if (!raw) return;
 
-      const parsed = JSON.parse(raw);
-
-      if (Array.isArray(parsed)) {
-        this.chats = parsed;
-        this.activeChatId = this.chats[0]?.id;
-        this.isFirstInteraction = false;
-      }
-    } catch (err) {
-      console.error('Failed to load chats', err);
-      localStorage.removeItem(this.STORAGE_KEY);
-    }
+    this.chats = JSON.parse(raw);
+    this.activeChatId = this.chats[0]?.id;
+    this.isFirstInteraction = false;
   }
 
   /* ================= CHAT ================= */
@@ -121,9 +98,7 @@ export class ChatComponent {
 
     this.chats.unshift(chat);
     this.activeChatId = chat.id;
-    this.selectedModel = chat.model;
     this.isFirstInteraction = true;
-
     this.saveChatsToStorage();
   }
 
@@ -132,8 +107,43 @@ export class ChatComponent {
     this.selectedModel = this.activeChat.model;
     this.isFirstInteraction = false;
     this.closeSidebarMenu();
-
     this.saveChatsToStorage();
+  }
+
+  sendMessage() {
+    if (!this.userInput.trim() || this.isLoading) return;
+
+    const chat = this.activeChat;
+    const userMsg = this.userInput;
+    this.userInput = '';
+
+    chat.messages.push({ text: userMsg, sender: 'user' });
+    this.saveChatsToStorage();
+
+    // 🔥 CONVERSATION MEMORY
+    const conversation = chat.messages
+      .slice(-this.MAX_HISTORY)
+      .map(m => ({
+        role: m.sender === 'user' ? 'user' : 'assistant',
+        content: m.text
+      }));
+
+    this.isLoading = true;
+
+    this.chatService.sendMessage(conversation, chat.model).subscribe({
+      next: res => {
+        chat.messages.push({ text: res.reply, sender: 'bot' });
+        this.isLoading = false;
+        this.saveChatsToStorage();
+      },
+      error: () => {
+        chat.messages.push({
+          text: '⚠️ Something went wrong.',
+          sender: 'bot'
+        });
+        this.isLoading = false;
+      }
+    });
   }
 
   toggleStar(chat: ChatSession) {
@@ -143,24 +153,16 @@ export class ChatComponent {
 
   deleteChat(chat: ChatSession) {
     this.chats = this.chats.filter(c => c.id !== chat.id);
-
-    if (this.chats.length) {
-      this.switchChat(this.chats[0].id);
-    } else {
-      this.createNewChat();
-    }
-
+    if (!this.chats.length) this.createNewChat();
+    else this.switchChat(this.chats[0].id);
     this.saveChatsToStorage();
   }
-
-  /* ================= RENAME ================= */
 
   startRename(chat?: ChatSession) {
     const target = chat || this.activeChat;
     this.activeChatId = target.id;
     this.renameInput = target.title;
     this.renamingChat = true;
-    this.isChatMenuOpen = false;
   }
 
   confirmRename() {
@@ -171,68 +173,8 @@ export class ChatComponent {
     this.renamingChat = false;
   }
 
-  /* ================= MESSAGE ================= */
-
-  sendMessage() {
-    if (!this.userInput.trim() || this.isLoading) return;
-
-    if (this.isFirstInteraction) this.isFirstInteraction = false;
-
-    const chat = this.activeChat;
-    const msg = this.userInput;
-    this.userInput = '';
-
-    chat.messages.push({ text: msg, sender: 'user' });
-    this.saveChatsToStorage();
-
-    if (chat.title === 'New Chat') {
-      chat.isGeneratingTitle = true;
-
-      this.chatService.generateTitle(msg).subscribe({
-        next: r => {
-          chat.title = r.title || 'New Chat';
-          chat.isGeneratingTitle = false;
-          this.saveChatsToStorage();
-        },
-        error: () => {
-          chat.title = msg.slice(0, 30);
-          chat.isGeneratingTitle = false;
-          this.saveChatsToStorage();
-        }
-      });
-    }
-
-    this.isLoading = true;
-
-    this.chatService.sendMessage(msg, chat.model).subscribe({
-      next: r => {
-        chat.messages.push({ text: r.reply, sender: 'bot' });
-        this.isLoading = false;
-        this.saveChatsToStorage();
-      },
-      error: () => {
-        chat.messages.push({
-          text: '⚠️ Something went wrong.',
-          sender: 'bot'
-        });
-        this.isLoading = false;
-        this.saveChatsToStorage();
-      }
-    });
-  }
-
-  /* ================= MENUS ================= */
-
   toggleChatMenu() {
     this.isChatMenuOpen = !this.isChatMenuOpen;
-  }
-
-  openSidebarMenu(chatId: number) {
-    this.sidebarMenuChatId = chatId;
-  }
-
-  closeSidebarMenu() {
-    this.sidebarMenuChatId = null;
   }
 
   toggleModelMenu() {
@@ -246,12 +188,17 @@ export class ChatComponent {
     this.saveChatsToStorage();
   }
 
-  /* ================= GLOBAL CLOSE ================= */
+  openSidebarMenu(id: number) {
+    this.sidebarMenuChatId = id;
+  }
+
+  closeSidebarMenu() {
+    this.sidebarMenuChatId = null;
+  }
 
   @HostListener('document:click', ['$event'])
   closeMenus(e: MouseEvent) {
     const t = e.target as HTMLElement;
-
     if (!t.closest('.chat-menu')) this.isChatMenuOpen = false;
     if (!t.closest('.model-picker')) this.isModelMenuOpen = false;
     if (!t.closest('.sidebar-menu')) this.sidebarMenuChatId = null;
