@@ -1,4 +1,4 @@
-import { Component, HostListener } from '@angular/core';
+import { Component, HostListener, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MarkdownModule } from 'ngx-markdown';
@@ -17,17 +17,28 @@ interface ChatSession {
   model: ModelType;
   messages: Message[];
   isStarred: boolean;
-  isGeneratingTitle?: boolean;
 }
 
 @Component({
   selector: 'app-chat',
   standalone: true,
-  imports: [CommonModule, FormsModule, MarkdownModule],
-  templateUrl: './chat.component.html'
+  templateUrl: './chat.component.html',
+  imports: [CommonModule, FormsModule, MarkdownModule]
 })
-export class ChatComponent {
+export class ChatComponent implements OnInit {
 
+  /* ================= SIDEBAR ================= */
+  isSidebarOpen = true;
+
+  toggleSidebar() {
+    this.isSidebarOpen = !this.isSidebarOpen;
+  }
+
+
+  /* ================= THEME ================= */
+  isDarkMode = false;
+
+  /* ================= STORAGE ================= */
   private readonly STORAGE_KEY = 'ang_chats_v1';
   private readonly MAX_HISTORY = 10;
 
@@ -38,35 +49,56 @@ export class ChatComponent {
   isLoading = false;
   isFirstInteraction = true;
 
-  isChatMenuOpen = false;
+  /* ================= MENUS ================= */
   isModelMenuOpen = false;
+  isChatMenuOpen = false;
+
+  /* ================= RENAME ================= */
   renamingChat = false;
   renameInput = '';
-  sidebarMenuChatId: number | null = null;
 
+  /* ================= MODEL ================= */
   selectedModel: ModelType = 'FAST';
 
-  models = [
-    { value: 'FAST', label: '⚡ Fast' },
-    { value: 'SMART', label: '🧠 Smart' },
-    { value: 'LONG', label: '📜 Long' },
-    { value: 'LIGHT', label: '🎯 Light' }
-  ] as const;
+  models: { value: ModelType; label: string }[] = [
+    { value: 'FAST', label: 'Fast' },
+    { value: 'SMART', label: 'Smart' },
+    { value: 'LONG', label: 'Long' },
+    { value: 'LIGHT', label: 'Light' }
+  ];
 
-  constructor(private chatService: ChatService) {
+  constructor(private chatService: ChatService) { }
+
+  ngOnInit() {
+    this.loadTheme();
     this.loadChatsFromStorage();
     if (!this.chats.length) this.createNewChat();
   }
+
+  /* ================= THEME ================= */
+
+  toggleTheme() {
+    this.isDarkMode = !this.isDarkMode;
+    document.documentElement.classList.toggle('dark', this.isDarkMode);
+    localStorage.setItem('ang-theme', this.isDarkMode ? 'dark' : 'light');
+  }
+
+  private loadTheme() {
+    this.isDarkMode = localStorage.getItem('ang-theme') === 'dark';
+    document.documentElement.classList.toggle('dark', this.isDarkMode);
+  }
+
+  /* ================= GETTERS ================= */
 
   get activeChat() {
     return this.chats.find(c => c.id === this.activeChatId)!;
   }
 
-  get starredChats() {
+  get starredChats(): ChatSession[] {
     return this.chats.filter(c => c.isStarred);
   }
 
-  get recentChats() {
+  get recentChats(): ChatSession[] {
     return this.chats.filter(c => !c.isStarred);
   }
 
@@ -88,6 +120,9 @@ export class ChatComponent {
   /* ================= CHAT ================= */
 
   createNewChat() {
+    this.isModelMenuOpen = false;
+    this.isChatMenuOpen = false;
+
     const chat: ChatSession = {
       id: Date.now(),
       title: 'New Chat',
@@ -106,7 +141,7 @@ export class ChatComponent {
     this.activeChatId = id;
     this.selectedModel = this.activeChat.model;
     this.isFirstInteraction = false;
-    this.closeSidebarMenu();
+    this.isChatMenuOpen = false;
     this.saveChatsToStorage();
   }
 
@@ -114,13 +149,13 @@ export class ChatComponent {
     if (!this.userInput.trim() || this.isLoading) return;
 
     const chat = this.activeChat;
-    const userMsg = this.userInput;
+    const msg = this.userInput;
     this.userInput = '';
 
-    chat.messages.push({ text: userMsg, sender: 'user' });
+    chat.messages.push({ text: msg, sender: 'user' });
+    this.isFirstInteraction = false;
     this.saveChatsToStorage();
 
-    // 🔥 CONVERSATION MEMORY
     const conversation = chat.messages
       .slice(-this.MAX_HISTORY)
       .map(m => ({
@@ -131,19 +166,49 @@ export class ChatComponent {
     this.isLoading = true;
 
     this.chatService.sendMessage(conversation, chat.model).subscribe({
-      next: res => {
-        chat.messages.push({ text: res.reply, sender: 'bot' });
+      next: r => {
+        chat.messages.push({ text: r.reply, sender: 'bot' });
         this.isLoading = false;
         this.saveChatsToStorage();
       },
       error: () => {
-        chat.messages.push({
-          text: '⚠️ Something went wrong.',
-          sender: 'bot'
-        });
+        chat.messages.push({ text: '⚠️ Something went wrong.', sender: 'bot' });
         this.isLoading = false;
       }
     });
+  }
+
+  /* ================= MODEL ================= */
+
+  toggleModelMenu() {
+    this.isModelMenuOpen = !this.isModelMenuOpen;
+  }
+
+  selectModel(m: ModelType) {
+    this.selectedModel = m;
+    this.activeChat.model = m;
+    this.isModelMenuOpen = false;
+    this.saveChatsToStorage();
+  }
+
+  /* ================= CHAT MENU ================= */
+
+  toggleChatMenu() {
+    this.isChatMenuOpen = !this.isChatMenuOpen;
+  }
+
+  startRename() {
+    this.renameInput = this.activeChat.title;
+    this.renamingChat = true;
+    this.isChatMenuOpen = false;
+  }
+
+  confirmRename() {
+    if (this.renameInput.trim()) {
+      this.activeChat.title = this.renameInput.trim();
+      this.saveChatsToStorage();
+    }
+    this.renamingChat = false;
   }
 
   toggleStar(chat: ChatSession) {
@@ -158,49 +223,12 @@ export class ChatComponent {
     this.saveChatsToStorage();
   }
 
-  startRename(chat?: ChatSession) {
-    const target = chat || this.activeChat;
-    this.activeChatId = target.id;
-    this.renameInput = target.title;
-    this.renamingChat = true;
-  }
-
-  confirmRename() {
-    if (this.renameInput.trim()) {
-      this.activeChat.title = this.renameInput.trim();
-      this.saveChatsToStorage();
-    }
-    this.renamingChat = false;
-  }
-
-  toggleChatMenu() {
-    this.isChatMenuOpen = !this.isChatMenuOpen;
-  }
-
-  toggleModelMenu() {
-    this.isModelMenuOpen = !this.isModelMenuOpen;
-  }
-
-  selectModel(m: ModelType) {
-    this.selectedModel = m;
-    this.activeChat.model = m;
-    this.isModelMenuOpen = false;
-    this.saveChatsToStorage();
-  }
-
-  openSidebarMenu(id: number) {
-    this.sidebarMenuChatId = id;
-  }
-
-  closeSidebarMenu() {
-    this.sidebarMenuChatId = null;
-  }
+  /* ================= GLOBAL CLOSE ================= */
 
   @HostListener('document:click', ['$event'])
   closeMenus(e: MouseEvent) {
     const t = e.target as HTMLElement;
-    if (!t.closest('.chat-menu')) this.isChatMenuOpen = false;
     if (!t.closest('.model-picker')) this.isModelMenuOpen = false;
-    if (!t.closest('.sidebar-menu')) this.sidebarMenuChatId = null;
+    if (!t.closest('.chat-menu')) this.isChatMenuOpen = false;
   }
 }
