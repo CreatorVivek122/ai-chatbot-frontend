@@ -148,14 +148,13 @@ export class ChatComponent implements OnInit {
   }
 
   private generateTitle(chat: ChatSession) {
+
+    const firstUserMessage = chat.messages.find(m => m.sender === 'user');
+    if (!firstUserMessage) return;
+
     chat.isGeneratingTitle = true;
 
-    const titleContext = chat.messages.slice(0, 4).map(m => ({
-      role: m.sender === 'user' ? 'user' : 'assistant',
-      content: m.text
-    }));
-
-    this.chatService.generateTitle(titleContext).subscribe({
+    this.chatService.generateTitle(firstUserMessage.text).subscribe({
       next: res => {
         chat.title = res.title || 'New Chat ';
         chat.hasGeneratedTitle = true;
@@ -194,7 +193,7 @@ export class ChatComponent implements OnInit {
         this.isLoading = false;
 
         // Generate title for the chat if it's the first interaction
-        if(!chat.hasGeneratedTitle && chat.messages.length >= 4){
+        if(!chat.hasGeneratedTitle){
           this.generateTitle(chat);
         }
 

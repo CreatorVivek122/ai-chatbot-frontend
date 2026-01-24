@@ -15,8 +15,8 @@ export class ChatService {
     });
   }
 
-  generateTitle(message: { role: string; content: string }[]) {
-    return this.http.post<any>(
+  generateTitle(message: string) {
+    return this.http.post<{ title : string }>(
       'https://ai-chatbot-backend-s8qj.vercel.app/api/title',
       { message }
     );
