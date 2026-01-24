@@ -17,6 +17,8 @@ interface ChatSession {
   model: ModelType;
   messages: Message[];
   isStarred: boolean;
+  isGeneratingTitle?: boolean;
+  hasGeneratedTitle?: boolean;
 }
 
 @Component({
@@ -145,6 +147,27 @@ export class ChatComponent implements OnInit {
     this.saveChatsToStorage();
   }
 
+  private generateTitle(chat: ChatSession) {
+    chat.isGeneratingTitle = true;
+
+    const titleContext = chat.messages.slice(0, 4).map(m => ({
+      role: m.sender === 'user' ? 'user' : 'assistant',
+      content: m.text
+    }));
+
+    this.chatService.generateTitle(titleContext).subscribe({
+      next: res => {
+        chat.title = res.title || 'New Chat ';
+        chat.hasGeneratedTitle = true;
+        chat.isGeneratingTitle = false;
+        this.saveChatsToStorage();
+      }, 
+      error: () => {
+        chat.isGeneratingTitle = false;
+      }
+    });
+  }
+
   sendMessage() {
     if (!this.userInput.trim() || this.isLoading) return;
 
@@ -169,6 +192,12 @@ export class ChatComponent implements OnInit {
       next: r => {
         chat.messages.push({ text: r.reply, sender: 'bot' });
         this.isLoading = false;
+
+        // Generate title for the chat if it's the first interaction
+        if(!chat.hasGeneratedTitle && chat.messages.length >= 4){
+          this.generateTitle(chat);
+        }
+
         this.saveChatsToStorage();
       },
       error: () => {
