@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MarkdownModule } from 'ngx-markdown';
 import { ChatService } from '../../services/chat.service';
+import { AfterViewChecked, ViewChild, ElementRef } from '@angular/core';
 
 type ModelType = 'FAST' | 'SMART' | 'LONG' | 'LIGHT';
 
@@ -25,10 +26,9 @@ interface ChatSession {
   selector: 'app-chat',
   standalone: true,
   templateUrl: './chat.component.html',
-  imports: [CommonModule, FormsModule, MarkdownModule]
+  imports: [CommonModule, FormsModule, MarkdownModule],
 })
-export class ChatComponent implements OnInit {
-
+export class ChatComponent implements OnInit, AfterViewChecked {
   /* ================= SIDEBAR ================= */
   isSidebarOpen = true;
 
@@ -36,13 +36,31 @@ export class ChatComponent implements OnInit {
     this.isSidebarOpen = !this.isSidebarOpen;
   }
 
-
   /* ================= THEME ================= */
   isDarkMode = false;
 
   /* ================= STORAGE ================= */
   private readonly STORAGE_KEY = 'ang_chats_v1';
   private readonly MAX_HISTORY = 10;
+
+  // ================= SCROLL ================= */
+  @ViewChild('chatContainer')
+  private chatContainer!: ElementRef<HTMLDivElement>;
+
+  private scrollToBottom(force = false): void {
+    if (!this.chatContainer) return;
+
+    requestAnimationFrame(() => {
+      const el = this.chatContainer.nativeElement;
+
+      // If user manually scrolled up, don't force unless requested
+      const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+
+      if (nearBottom || force) {
+        el.scrollTop = el.scrollHeight;
+      }
+    });
+  }
 
   chats: ChatSession[] = [];
   activeChatId!: number;
@@ -66,10 +84,13 @@ export class ChatComponent implements OnInit {
     { value: 'FAST', label: 'Fast' },
     { value: 'SMART', label: 'Smart' },
     { value: 'LONG', label: 'Long' },
-    { value: 'LIGHT', label: 'Light' }
+    { value: 'LIGHT', label: 'Light' },
   ];
 
-  constructor(private chatService: ChatService) { }
+  constructor(private chatService: ChatService) {}
+  ngAfterViewChecked(): void {
+    throw new Error('Method not implemented.');
+  }
 
   ngOnInit() {
     this.loadTheme();
@@ -93,15 +114,15 @@ export class ChatComponent implements OnInit {
   /* ================= GETTERS ================= */
 
   get activeChat() {
-    return this.chats.find(c => c.id === this.activeChatId)!;
+    return this.chats.find((c) => c.id === this.activeChatId)!;
   }
 
   get starredChats(): ChatSession[] {
-    return this.chats.filter(c => c.isStarred);
+    return this.chats.filter((c) => c.isStarred);
   }
 
   get recentChats(): ChatSession[] {
-    return this.chats.filter(c => !c.isStarred);
+    return this.chats.filter((c) => !c.isStarred);
   }
 
   /* ================= STORAGE ================= */
@@ -130,7 +151,7 @@ export class ChatComponent implements OnInit {
       title: 'New Chat',
       model: this.selectedModel,
       isStarred: false,
-      messages: [{ text: 'Hello 👋 How can I help you?', sender: 'bot' }]
+      messages: [{ text: 'Hello 👋 How can I help you?', sender: 'bot' }],
     };
 
     this.chats.unshift(chat);
@@ -145,25 +166,25 @@ export class ChatComponent implements OnInit {
     this.isFirstInteraction = false;
     this.isChatMenuOpen = false;
     this.saveChatsToStorage();
+    this.scrollToBottom(true);
   }
 
   private generateTitle(chat: ChatSession) {
-
-    const firstUserMessage = chat.messages.find(m => m.sender === 'user');
+    const firstUserMessage = chat.messages.find((m) => m.sender === 'user');
     if (!firstUserMessage) return;
 
     chat.isGeneratingTitle = true;
 
     this.chatService.generateTitle(firstUserMessage.text).subscribe({
-      next: res => {
+      next: (res) => {
         chat.title = res.title || 'New Chat ';
         chat.hasGeneratedTitle = true;
         chat.isGeneratingTitle = false;
         this.saveChatsToStorage();
-      }, 
+      },
       error: () => {
         chat.isGeneratingTitle = false;
-      }
+      },
     });
   }
 
@@ -177,32 +198,34 @@ export class ChatComponent implements OnInit {
     chat.messages.push({ text: msg, sender: 'user' });
     this.isFirstInteraction = false;
     this.saveChatsToStorage();
+    this.scrollToBottom(true);
 
-    const conversation = chat.messages
-      .slice(-this.MAX_HISTORY)
-      .map(m => ({
-        role: m.sender === 'user' ? 'user' : 'assistant',
-        content: m.text
-      }));
+    const conversation = chat.messages.slice(-this.MAX_HISTORY).map((m) => ({
+      role: m.sender === 'user' ? 'user' : 'assistant',
+      content: m.text,
+    }));
 
     this.isLoading = true;
 
     this.chatService.sendMessage(conversation, chat.model).subscribe({
-      next: r => {
+      next: (r) => {
         chat.messages.push({ text: r.reply, sender: 'bot' });
         this.isLoading = false;
+        this.scrollToBottom(true);
 
         // Generate title for the chat if it's the first interaction
-        if(!chat.hasGeneratedTitle){
+        if (!chat.hasGeneratedTitle) {
           this.generateTitle(chat);
         }
 
         this.saveChatsToStorage();
+        setTimeout(() => this.scrollToBottom(), 0);
       },
       error: () => {
         chat.messages.push({ text: '⚠️ Something went wrong.', sender: 'bot' });
         this.isLoading = false;
-      }
+        this.scrollToBottom(true);
+      },
     });
   }
 
@@ -245,7 +268,7 @@ export class ChatComponent implements OnInit {
   }
 
   deleteChat(chat: ChatSession) {
-    this.chats = this.chats.filter(c => c.id !== chat.id);
+    this.chats = this.chats.filter((c) => c.id !== chat.id);
     if (!this.chats.length) this.createNewChat();
     else this.switchChat(this.chats[0].id);
     this.saveChatsToStorage();
