@@ -1,27 +1,171 @@
 @import "tailwindcss";
 
-/* ================= LIGHT THEME ================= */
-:root {
-  --bg-main: #f9fafb;
-  --bg-panel: #ffffff;
-  --bg-hover: #f3f4f6;
-  --bg-input: #ffffff;
+@theme {
+  --color-bg-main: var(--bg-main);
+  --color-bg-secondary: var(--bg-secondary);
+  --color-bg-surface: var(--bg-surface);
+  --color-bg-elevated: var(--bg-elevated);
 
-  --text-main: #111827;
-  --text-muted: #6b7280;
+  --color-text-main: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
 
-  --border-color: #e5e7eb;
+  --color-accent-primary: var(--accent-primary);
+  --color-accent-secondary: var(--accent-secondary);
+  --color-accent-highlight: var(--accent-highlight);
+
+  --color-border-subtle: var(--border-subtle);
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
+  --animate-fade-in: fade-in 0.3s ease-out;
+  --animate-slide-up: slide-up 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  --animate-typing-dot: typing-dot 1.4s infinite ease-in-out both;
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes slide-up {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes typing-dot {
+    0%, 80%, 100% { transform: scale(0); opacity: 0.5; }
+    40% { transform: scale(1); opacity: 1; }
+  }
 }
 
-/* ================= DARK THEME ================= */
-.dark {
-  --bg-main: #0f172a;
-  --bg-panel: #1e293b;
-  --bg-hover: #334155;
-  --bg-input: #1e293b;
+@layer base {
+  :root {
+    /* ================= LIGHT THEME ================= */
+    --bg-main: #F8FAFC;
+    --bg-secondary: #EEF2FF;
+    --bg-surface: #FFFFFF;
+    --bg-elevated: #F1F5F9;
 
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
+    --text-primary: #0F172A;
+    --text-secondary: #334155;
+    --text-muted: #64748B;
 
-  --border-color: #334155;
+    --accent-primary: #4F46E5;
+    --accent-secondary: #7C3AED;
+    --accent-highlight: #0891B2;
+    
+    --border-subtle: rgba(15, 23, 42, 0.08);
+
+    --shadow-default: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+    --shadow-elevated: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.025);
+  }
+
+  :root.dark {
+    /* ================= DARK THEME ================= */
+    --bg-main: #0B1020;
+    --bg-secondary: #111827;
+    --bg-surface: #1A2333;
+    --bg-elevated: #243044;
+
+    --text-primary: #F8FAFC;
+    --text-secondary: #CBD5E1;
+    --text-muted: #94A3B8;
+
+    --accent-primary: #6366F1;
+    --accent-secondary: #8B5CF6;
+    --accent-highlight: #06B6D4;
+
+    --border-subtle: rgba(248, 250, 252, 0.08);
+
+    --shadow-default: 0 4px 6px -1px rgba(0, 0, 0, 0.2), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
+    --shadow-elevated: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
+  }
+
+  /* ================= GLASSMORPHISM ================= */
+  :root.theme-glass {
+    --glass-bg: rgba(255, 255, 255, 0.7);
+    --glass-border: rgba(255, 255, 255, 0.6);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+  }
+  :root.dark.theme-glass {
+    --glass-bg: rgba(255, 255, 255, 0.05);
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+  }
+
+  /* ================= NEUMORPHISM ================= */
+  :root.theme-neumorphism {
+    --bg-main: #EEF2F7;
+    --bg-secondary: #E2E8F0;
+    --bg-surface: #EEF2F7;
+    --bg-elevated: #EEF2F7;
+    --neumorph-shadow: 8px 8px 16px rgba(148, 163, 184, 0.25), -8px -8px 16px rgba(255, 255, 255, 0.8);
+    --neumorph-shadow-inset: inset 4px 4px 8px rgba(148, 163, 184, 0.25), inset -4px -4px 8px rgba(255, 255, 255, 0.8);
+  }
+  :root.dark.theme-neumorphism {
+    --bg-main: #1B2433;
+    --bg-secondary: #151C2A;
+    --bg-surface: #1B2433;
+    --bg-elevated: #1B2433;
+    --neumorph-shadow: 8px 8px 16px rgba(0, 0, 0, 0.45), -8px -8px 16px rgba(255, 255, 255, 0.03);
+    --neumorph-shadow-inset: inset 4px 4px 8px rgba(0, 0, 0, 0.45), inset -4px -4px 8px rgba(255, 255, 255, 0.03);
+  }
+  
+  html, body {
+    @apply h-full w-full m-0 p-0 overflow-hidden;
+  }
+}
+
+/* Custom Utilities */
+@layer utilities {
+  .glass-panel {
+    background-color: var(--glass-bg);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--glass-shadow);
+  }
+
+  .neumorph-panel {
+    background-color: var(--bg-surface);
+    box-shadow: var(--neumorph-shadow);
+  }
+
+  .neumorph-pressed {
+    background-color: var(--bg-surface);
+    box-shadow: var(--neumorph-shadow-inset);
+  }
+
+  /* Markdown styling overrides */
+  .markdown-body {
+    @apply text-text-main text-[15px] leading-relaxed;
+  }
+  .markdown-body p {
+    @apply mb-4 last:mb-0;
+  }
+  .markdown-body pre {
+    @apply bg-black/80 dark:bg-black/40 p-4 rounded-xl overflow-x-auto my-4 text-sm font-mono border border-border-subtle shadow-inner;
+  }
+  .markdown-body code {
+    @apply bg-black/10 dark:bg-white/10 px-1.5 py-0.5 rounded text-sm font-mono text-accent-primary dark:text-accent-highlight;
+  }
+  .markdown-body pre code {
+    @apply bg-transparent p-0 text-text-main dark:text-text-secondary;
+  }
+  .markdown-body ul, .markdown-body ol {
+    @apply pl-6 mb-4;
+  }
+  .markdown-body ul {
+    @apply list-disc;
+  }
+  .markdown-body ol {
+    @apply list-decimal;
+  }
+  .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4 {
+    @apply font-semibold mt-6 mb-3 tracking-tight;
+  }
+  .markdown-body h1 { @apply text-2xl; }
+  .markdown-body h2 { @apply text-xl; }
+  .markdown-body h3 { @apply text-lg; }
+  .markdown-body a {
+    @apply text-accent-primary hover:underline transition-colors;
+  }
 }

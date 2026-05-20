@@ -2,7 +2,7 @@ import { Component, HostListener, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MarkdownModule } from 'ngx-markdown';
-import { ChatService } from '../../services/chat.service';
+import { ChatService } from '../../core/services/chat.service';
 import { AfterViewChecked, ViewChild, ElementRef } from '@angular/core';
 
 type ModelType = 'FAST' | 'SMART' | 'LONG' | 'LIGHT';
@@ -89,7 +89,7 @@ export class ChatComponent implements OnInit, AfterViewChecked {
 
   constructor(private chatService: ChatService) {}
   ngAfterViewChecked(): void {
-    throw new Error('Method not implemented.');
+    this.scrollToBottom();
   }
 
   ngOnInit() {
